@@ -86,12 +86,14 @@ export async function deleteFile(
  */
 export async function getFile(
   key: string,
+  range?: string,
   bucket: string = S3_BUCKET,
 ) {
   return s3.send(
     new GetObjectCommand({
       Bucket: bucket,
       Key: key,
+      Range: range,
     }),
   );
 }
