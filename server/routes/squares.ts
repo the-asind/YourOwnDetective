@@ -126,7 +126,7 @@ router.post('/', upload.single('file'), async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { isOpened, openedBy, description, secretName } = req.body;
+    const { isOpened, openedBy, description, secretName, content } = req.body;
 
     // Build dynamic SET clause
     const sets: string[] = [];
@@ -158,6 +158,11 @@ router.put('/:id', async (req, res) => {
     if (secretName !== undefined) {
       sets.push(`secret_name = $${idx++}`);
       params.push(secretName.toLowerCase().trim());
+    }
+
+    if (content !== undefined) {
+      sets.push(`content = $${idx++}`);
+      params.push(content);
     }
 
     if (sets.length === 0) {

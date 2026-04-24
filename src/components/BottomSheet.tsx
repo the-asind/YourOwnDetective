@@ -25,6 +25,7 @@ export default function BottomSheet({ square, onClose }: BottomSheetProps) {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const requestRef = useRef<number>(undefined);
   const dragControls = useDragControls();
+  const progress = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
 
   useEffect(() => {
     const audioUrl = square?.type === 'audio' ? getPlayableAudioUrl(square) : undefined;
@@ -108,6 +109,14 @@ export default function BottomSheet({ square, onClose }: BottomSheetProps) {
     if (shouldClose) {
       onClose();
     }
+  };
+
+  const handleSeek = (time: number) => {
+    const audio = audioRef.current;
+    if (!audio || !Number.isFinite(duration)) return;
+
+    audio.currentTime = time;
+    setCurrentTime(time);
   };
 
   if (!square) return null;
@@ -201,6 +210,20 @@ export default function BottomSheet({ square, onClose }: BottomSheetProps) {
                          />
                        ))}
                     </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={duration || 0}
+                      step={0.01}
+                      value={currentTime}
+                      disabled={!duration}
+                      onChange={(e) => handleSeek(Number(e.target.value))}
+                      aria-label="Перемотка аудио"
+                      className="mb-7 h-2 w-full max-w-[220px] cursor-pointer appearance-none rounded-full disabled:cursor-default disabled:opacity-50 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-blue-500 [&::-moz-range-thumb]:shadow-sm [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:shadow-sm"
+                      style={{
+                        background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${progress}%, #e5e7eb ${progress}%, #e5e7eb 100%)`,
+                      }}
+                    />
                     <div className="text-3xl font-mono tracking-tight text-gray-800">
                       {formatTime(currentTime)} <span className="text-gray-400 text-xl">/ {formatTime(duration)}</span>
                     </div>

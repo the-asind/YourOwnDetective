@@ -50,6 +50,7 @@ export async function updateSquare(
     openedBy: string;
     description: string;
     secretName: string;
+    content: string;
   }>,
 ): Promise<Square> {
   return request<Square>(`${API}/squares/${id}`, {

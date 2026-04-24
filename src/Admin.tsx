@@ -124,6 +124,7 @@ function AdminPanel() {
         isOpened: editingSquare.isOpened,
         openedBy: editingSquare.isOpened ? editingSquare.openedBy : undefined,
         description: editingSquare.description,
+        content: editingSquare.type === 'text' ? editingSquare.content : undefined,
       });
       await refreshSquares();
       setEditingSquare(null);
@@ -248,10 +249,21 @@ function AdminPanel() {
       {/* Edit Modal */}
       {editingSquare && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-sm">
+          <div className="bg-white rounded-xl p-6 w-full max-w-lg">
             <h3 className="text-xl font-bold mb-4">Изменить квадрат «{editingSquare.secretName}»</h3>
             
             <div className="space-y-4 mb-6">
+              {editingSquare.type === 'text' && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Текст квадрата</label>
+                  <textarea
+                    value={editingSquare.content || ''}
+                    onChange={e => setEditingSquare({...editingSquare, content: e.target.value})}
+                    className="h-40 w-full resize-y rounded-md border px-3 py-2 font-serif text-sm leading-relaxed"
+                  />
+                </div>
+              )}
+
               <label className="flex items-center gap-2">
                 <input type="checkbox" checked={editingSquare.isOpened} onChange={e => setEditingSquare({...editingSquare, isOpened: e.target.checked})} className="w-5 h-5" />
                 <span className="font-medium">Открыт</span>
