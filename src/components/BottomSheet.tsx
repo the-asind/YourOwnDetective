@@ -117,6 +117,17 @@ export default function BottomSheet({ square, onClose }: BottomSheetProps) {
 
     audio.currentTime = time;
     setCurrentTime(time);
+
+    if (audio.paused) {
+      audio.play().then(() => {
+        setIsPlaying(true);
+        if (audioCtxRef.current?.state === 'suspended') {
+          audioCtxRef.current.resume();
+        }
+      }).catch(err => {
+        console.error("Playback resume prevented:", err);
+      });
+    }
   };
 
   if (!square) return null;
