@@ -61,6 +61,7 @@ router.post('/', async (req, res) => {
         type: sq.type,
         content: sq.content,
         audioUrl: sq.audio_url || undefined,
+        audioFallbackUrl: sq.audio_fallback_url || undefined,
         description: sq.description || undefined,
         isOpened: true,
         openedBy: sq.opened_by,
