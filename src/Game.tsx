@@ -130,7 +130,7 @@ export default function Game({ playerName }: GameProps) {
 
       {/* Squares Grid */}
       <div className="px-4 pb-20 pt-2 flex-1">
-        <motion.div layout className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <AnimatePresence>
             {displayedSquares.map((square) => (
               <SquareCard 
@@ -140,7 +140,7 @@ export default function Game({ playerName }: GameProps) {
               />
             ))}
           </AnimatePresence>
-        </motion.div>
+        </div>
       </div>
 
       {/* Detailed Overlay */}
@@ -191,11 +191,11 @@ function SquareCard({ square, onClick }: { key?: string | number; square: Square
 
   return (
     <motion.button
-      layout
+      layout="position"
       initial={{ opacity: 0, scale: 0.8, y: 20 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.8 }}
-      transition={{ duration: 0.2 }}
+      transition={{ duration: 0.18, layout: { duration: 0.18 } }}
       onClick={onClick}
       className="relative aspect-square w-full rounded-[20px] overflow-hidden active:scale-95 transition-transform flex flex-col border border-gray-100/50 shadow-sm"
     >
