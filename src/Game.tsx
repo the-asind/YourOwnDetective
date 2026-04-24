@@ -8,6 +8,7 @@ import { useStamina } from './hooks/useStamina';
 import { formatTimeAgo } from './lib/format';
 import * as api from './api';
 import BottomSheet from './components/BottomSheet';
+import { getPlayableAudioUrl } from './lib/audio';
 
 interface GameProps {
   playerName: string;
@@ -165,10 +166,12 @@ function SquareCard({ square, onClick }: { key?: string | number; square: Square
   const [realDuration, setRealDuration] = useState<string | null>(null);
 
   useEffect(() => {
-    if (square.type === 'audio' && square.audioUrl) {
+    const audioUrl = square.type === 'audio' ? getPlayableAudioUrl(square) : undefined;
+
+    if (square.type === 'audio' && audioUrl) {
       const audio = new Audio();
       audio.crossOrigin = "anonymous";
-      audio.src = square.audioUrl;
+      audio.src = audioUrl;
       // Tell browser we only need metadata (duration) for grid view
       audio.preload = 'metadata'; 
 
@@ -184,7 +187,7 @@ function SquareCard({ square, onClick }: { key?: string | number; square: Square
 
       return () => audio.removeEventListener('loadedmetadata', handleMetadata);
     }
-  }, [square.type, square.audioUrl]);
+  }, [square]);
 
   return (
     <motion.button
