@@ -2,10 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import dotenv from 'dotenv';
-import { createProxyMiddleware } from 'http-proxy-middleware';
+import { Readable } from 'stream';
 
 import { runMigrations } from './migrate.js';
-import { ensureBucket, S3_BUCKET } from './storage.js';
+import { ensureBucket, getFile, S3_BUCKET } from './storage.js';
 
 import squaresRouter from './routes/squares.js';
 import usersRouter from './routes/users.js';
@@ -16,7 +16,6 @@ dotenv.config();
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-const S3_ENDPOINT = process.env.S3_ENDPOINT || 'http://localhost:9000';
 
 async function main() {
   // ── Run migrations ──
@@ -44,20 +43,31 @@ async function main() {
     res.json({ status: 'ok', timestamp: Date.now() });
   });
 
-  // ── Proxy /media/* to MinIO for serving uploaded files ──
-  app.use(
-    '/media',
-    createProxyMiddleware({
-      target: S3_ENDPOINT,
-      changeOrigin: true,
-      pathRewrite: (_path, req) => {
-        // /media/images/abc.webp → /squares-media/images/abc.webp
-        const objectPath = req.url || '';
-        return `/${S3_BUCKET}${objectPath}`;
-      },
-      logger: console,
-    }),
-  );
+  // ── Serve private MinIO objects through the app ──
+  app.get('/media/*', async (req, res) => {
+    const key = req.params[0];
+    if (!key || key.includes('..')) {
+      return res.status(400).json({ error: 'Invalid media key' });
+    }
+
+    try {
+      const object = await getFile(key);
+      if (object.ContentType) res.type(object.ContentType);
+      if (object.ContentLength) res.setHeader('Content-Length', String(object.ContentLength));
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+
+      if (object.Body instanceof Readable) {
+        object.Body.pipe(res);
+        return;
+      }
+
+      res.status(500).json({ error: 'Unsupported media body' });
+    } catch (err: any) {
+      const status = err?.$metadata?.httpStatusCode === 404 || err?.name === 'NoSuchKey' ? 404 : 500;
+      console.error('[Media] GET error:', key, err?.message || err);
+      res.status(status).json({ error: status === 404 ? 'Media not found' : 'Media read failed' });
+    }
+  });
 
   // ── Serve static frontend in production ──
   if (IS_PRODUCTION) {
