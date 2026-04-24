@@ -51,9 +51,15 @@ async function main() {
     }
 
     try {
-      const object = await getFile(key);
+      const range = typeof req.headers.range === 'string' ? req.headers.range : undefined;
+      const object = await getFile(key, range);
+      if (range && object.ContentRange) {
+        res.status(206);
+        res.setHeader('Content-Range', object.ContentRange);
+      }
       if (object.ContentType) res.type(object.ContentType);
       if (object.ContentLength) res.setHeader('Content-Length', String(object.ContentLength));
+      res.setHeader('Accept-Ranges', 'bytes');
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
 
       if (object.Body instanceof Readable) {
@@ -63,7 +69,11 @@ async function main() {
 
       res.status(500).json({ error: 'Unsupported media body' });
     } catch (err: any) {
-      const status = err?.$metadata?.httpStatusCode === 404 || err?.name === 'NoSuchKey' ? 404 : 500;
+      const status = err?.$metadata?.httpStatusCode === 404 || err?.name === 'NoSuchKey'
+        ? 404
+        : err?.$metadata?.httpStatusCode === 416
+          ? 416
+          : 500;
       console.error('[Media] GET error:', key, err?.message || err);
       res.status(status).json({ error: status === 404 ? 'Media not found' : 'Media read failed' });
     }
