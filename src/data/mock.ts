@@ -6,6 +6,7 @@ export interface Square {
   type: ContentType;
   content: string;
   audioUrl?: string;
+  audioFallbackUrl?: string;
   isOpened: boolean;
   openedBy?: string;
   openedAt?: number;
