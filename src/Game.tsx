@@ -187,7 +187,7 @@ function SquareCard({ square, onClick }: { key?: string | number; square: Square
 
       return () => audio.removeEventListener('loadedmetadata', handleMetadata);
     }
-  }, [square]);
+  }, [square.type, square.audioUrl, square.audioFallbackUrl]);
 
   return (
     <motion.button
