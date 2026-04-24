@@ -4,6 +4,7 @@ import {
   DeleteObjectCommand,
   CreateBucketCommand,
   HeadBucketCommand,
+  GetObjectCommand,
 } from '@aws-sdk/client-s3';
 import dotenv from 'dotenv';
 
@@ -74,6 +75,21 @@ export async function deleteFile(
 ): Promise<void> {
   await s3.send(
     new DeleteObjectCommand({
+      Bucket: bucket,
+      Key: key,
+    }),
+  );
+}
+
+/**
+ * Read a private object from S3/MinIO for serving through the app.
+ */
+export async function getFile(
+  key: string,
+  bucket: string = S3_BUCKET,
+) {
+  return s3.send(
+    new GetObjectCommand({
       Bucket: bucket,
       Key: key,
     }),
