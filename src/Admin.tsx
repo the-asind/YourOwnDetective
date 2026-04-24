@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { useSquares, useUsers } from './store';
 import { ContentType, Square } from './data/mock';
 import * as api from './api';
+import { getPlayableAudioUrl } from './lib/audio';
 
 const ADMIN_AUTH_KEY = 'admin_authenticated';
 
@@ -121,11 +122,22 @@ function AdminPanel() {
     try {
       await api.updateSquare(editingSquare.id, {
         isOpened: editingSquare.isOpened,
-        openedBy: editingSquare.openedBy,
+        openedBy: editingSquare.isOpened ? editingSquare.openedBy : undefined,
         description: editingSquare.description,
       });
       await refreshSquares();
       setEditingSquare(null);
+    } catch (err: any) {
+      alert('Ошибка: ' + err.message);
+    }
+  };
+
+  const deleteSquare = async (square: Square) => {
+    if (!confirm(`Удалить квадрат «${square.secretName}»?`)) return;
+
+    try {
+      await api.deleteSquare(square.id);
+      await refreshSquares();
     } catch (err: any) {
       alert('Ошибка: ' + err.message);
     }
@@ -146,22 +158,34 @@ function AdminPanel() {
         {newTab === 'squares' && (
           <div className="space-y-4">
             {squares.map(sq => (
-              <div key={sq.id} className="p-4 rounded-lg border border-gray-200 flex justify-between items-center bg-gray-50/50 hover:bg-gray-50">
-                <div>
-                  <div className="font-semibold text-lg flex items-center gap-2">
-                    {sq.secretName} 
-                    <span className="text-xs px-2 py-0.5 rounded-md bg-white border border-gray-300 text-gray-500 uppercase tracking-widest">{sq.type}</span>
+              <div key={sq.id} className="p-4 rounded-lg border border-gray-200 bg-gray-50/50 hover:bg-gray-50">
+                <div className="flex gap-4">
+                  <SquarePreview square={sq} />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-lg flex items-center gap-2">
+                      <span className="truncate">{sq.secretName}</span>
+                      <span className="text-xs px-2 py-0.5 rounded-md bg-white border border-gray-300 text-gray-500 uppercase tracking-widest">{sq.type}</span>
+                    </div>
+                    <div className="text-sm text-gray-500 mt-1">
+                      Статус: {sq.isOpened ? <span className="text-green-600 font-medium">Открыт ({sq.openedBy})</span> : <span className="text-gray-400">Скрыт</span>}
+                    </div>
+                    {sq.description && <p className="text-sm text-gray-600 mt-2 line-clamp-2">{sq.description}</p>}
                   </div>
-                  <div className="text-sm text-gray-500 mt-1">
-                    Статус: {sq.isOpened ? <span className="text-green-600 font-medium">Открыт ({sq.openedBy})</span> : <span className="text-gray-400">Скрыт</span>}
+                  <div className="flex shrink-0 gap-2">
+                    <button
+                      onClick={() => setEditingSquare({...sq})}
+                      className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-100"
+                    >
+                      Изменить
+                    </button>
+                    <button
+                      onClick={() => deleteSquare(sq)}
+                      className="px-4 py-2 bg-red-50 border border-red-100 rounded-lg text-sm font-medium text-red-600 hover:bg-red-100"
+                    >
+                      Удалить
+                    </button>
                   </div>
                 </div>
-                <button 
-                  onClick={() => setEditingSquare({...sq})}
-                  className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-100"
-                >
-                  Изменить
-                </button>
               </div>
             ))}
           </div>
@@ -248,6 +272,33 @@ function AdminPanel() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function SquarePreview({ square }: { square: Square }) {
+  if (square.type === 'image') {
+    return (
+      <img
+        src={square.content}
+        alt=""
+        className="h-20 w-20 shrink-0 rounded-lg border border-gray-200 object-cover bg-white"
+      />
+    );
+  }
+
+  if (square.type === 'audio') {
+    const audioUrl = getPlayableAudioUrl(square);
+    return (
+      <div className="h-20 w-40 shrink-0 rounded-lg border border-gray-200 bg-white p-2 flex items-center">
+        {audioUrl ? <audio controls preload="none" src={audioUrl} className="w-full" /> : <span className="text-xs text-gray-400">Нет аудио</span>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-20 w-40 shrink-0 rounded-lg border border-gray-200 bg-[#F8F5E6] p-3 overflow-hidden">
+      <p className="text-xs leading-snug text-slate-700 line-clamp-4 whitespace-pre-wrap">{square.content || 'Пустой текст'}</p>
     </div>
   );
 }
