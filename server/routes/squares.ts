@@ -4,6 +4,7 @@ import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
 import { query } from '../db.js';
 import { uploadFile, deleteFile, S3_PUBLIC_BASE } from '../storage.js';
+import { processAudio } from '../lib/audio.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
@@ -14,7 +15,7 @@ router.get('/', async (req, res) => {
     const isAdmin = req.query.admin === 'true';
 
     const { rows } = await query(
-      `SELECT id, secret_name, type, content, audio_url, description,
+      `SELECT id, secret_name, type, content, audio_url, audio_fallback_url, description,
               is_opened, opened_by, opened_at, sort_order, created_at
        FROM squares ORDER BY sort_order ASC, created_at ASC`,
     );
@@ -25,6 +26,7 @@ router.get('/', async (req, res) => {
         type: r.type,
         content: r.content,
         audioUrl: r.audio_url || undefined,
+        audioFallbackUrl: r.audio_fallback_url || undefined,
         description: r.description || undefined,
         isOpened: r.is_opened,
         openedBy: r.opened_by || undefined,
@@ -59,6 +61,7 @@ router.post('/', upload.single('file'), async (req, res) => {
 
     let contentVal = '';
     let audioUrlVal: string | null = null;
+    let audioFallbackUrlVal: string | null = null;
 
     if (type === 'text') {
       contentVal = contentText || '';
@@ -72,9 +75,10 @@ router.post('/', upload.single('file'), async (req, res) => {
       const key = `images/${uuidv4()}.webp`;
       contentVal = await uploadFile(key, processed, 'image/webp');
     } else if (type === 'audio' && req.file) {
-      const ext = req.file.originalname.split('.').pop() || 'mp3';
-      const key = `audio/${uuidv4()}.${ext}`;
-      audioUrlVal = await uploadFile(key, req.file.buffer, req.file.mimetype);
+      const processed = await processAudio(req.file.buffer, req.file.originalname);
+      const audioId = uuidv4();
+      audioUrlVal = await uploadFile(`audio/${audioId}.webm`, processed.opus, 'audio/webm');
+      audioFallbackUrlVal = await uploadFile(`audio/${audioId}.m4a`, processed.aac, 'audio/mp4');
       contentVal = 'Аудиофайл';
     } else {
       return res.status(400).json({ error: 'File or text content required' });
@@ -85,10 +89,18 @@ router.post('/', upload.single('file'), async (req, res) => {
     const nextOrder = maxRows[0].next;
 
     const { rows } = await query(
-      `INSERT INTO squares (secret_name, type, content, audio_url, description, sort_order)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO squares (secret_name, type, content, audio_url, audio_fallback_url, description, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [secretName.toLowerCase().trim(), type, contentVal, audioUrlVal, description || null, nextOrder],
+      [
+        secretName.toLowerCase().trim(),
+        type,
+        contentVal,
+        audioUrlVal,
+        audioFallbackUrlVal,
+        description || null,
+        nextOrder,
+      ],
     );
 
     const sq = rows[0];
@@ -98,6 +110,7 @@ router.post('/', upload.single('file'), async (req, res) => {
       type: sq.type,
       content: sq.content,
       audioUrl: sq.audio_url || undefined,
+      audioFallbackUrl: sq.audio_fallback_url || undefined,
       description: sq.description || undefined,
       isOpened: sq.is_opened,
       openedBy: sq.opened_by || undefined,
@@ -166,6 +179,7 @@ router.put('/:id', async (req, res) => {
       type: sq.type,
       content: sq.content,
       audioUrl: sq.audio_url || undefined,
+      audioFallbackUrl: sq.audio_fallback_url || undefined,
       description: sq.description || undefined,
       isOpened: sq.is_opened,
       openedBy: sq.opened_by || undefined,
@@ -183,7 +197,7 @@ router.delete('/:id', async (req, res) => {
     const { id } = req.params;
 
     // Get square first to delete associated files
-    const { rows } = await query('SELECT content, audio_url, type FROM squares WHERE id = $1', [id]);
+    const { rows } = await query('SELECT content, audio_url, audio_fallback_url, type FROM squares WHERE id = $1', [id]);
     if (rows.length === 0) return res.status(404).json({ error: 'Square not found' });
 
     const sq = rows[0];
@@ -195,6 +209,10 @@ router.delete('/:id', async (req, res) => {
     }
     if (sq.audio_url?.startsWith(S3_PUBLIC_BASE)) {
       const key = sq.audio_url.replace(`${S3_PUBLIC_BASE}/`, '');
+      await deleteFile(key).catch(() => {});
+    }
+    if (sq.audio_fallback_url?.startsWith(S3_PUBLIC_BASE)) {
+      const key = sq.audio_fallback_url.replace(`${S3_PUBLIC_BASE}/`, '');
       await deleteFile(key).catch(() => {});
     }
 
