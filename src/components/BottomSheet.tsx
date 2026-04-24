@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence, useDragControls } from 'motion/react';
 import { Square } from '../data/mock';
+import { getPlayableAudioUrl } from '../lib/audio';
 
 const formatTime = (time: number) => {
   if (isNaN(time)) return "0:00";
@@ -26,10 +27,12 @@ export default function BottomSheet({ square, onClose }: BottomSheetProps) {
   const dragControls = useDragControls();
 
   useEffect(() => {
-    if (square?.type === 'audio' && square.audioUrl) {
+    const audioUrl = square?.type === 'audio' ? getPlayableAudioUrl(square) : undefined;
+
+    if (square?.type === 'audio' && audioUrl) {
       const audio = new Audio();
       audio.crossOrigin = "anonymous"; // Essential for Web Audio API so it doesn't mute the track!
-      audio.src = square.audioUrl;
+      audio.src = audioUrl;
       audioRef.current = audio;
       
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
