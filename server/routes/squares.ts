@@ -145,7 +145,7 @@ router.put('/:id', async (req, res) => {
       }
     }
 
-    if (openedBy !== undefined) {
+    if (openedBy !== undefined && isOpened !== false) {
       sets.push(`opened_by = $${idx++}`);
       params.push(openedBy || null);
     }
