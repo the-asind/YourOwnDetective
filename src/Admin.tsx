@@ -210,6 +210,7 @@ function AdminPanel() {
                 <option value="image">Фото / Картинка</option>
                 <option value="text">Текст</option>
                 <option value="audio">Аудио / Музыка</option>
+                <option value="video">Видео</option>
               </select>
             </div>
 
@@ -220,9 +221,12 @@ function AdminPanel() {
                </div>
             ) : (
                <div>
-                 <label className="block text-sm font-medium text-gray-700 mb-1">Файл ({newType === 'audio' ? 'MP3, OGG, WAV' : 'JPG, PNG, WEBP'})</label>
-                 <input type="file" accept={newType === 'audio' ? 'audio/*' : 'image/*'} onChange={e => setNewFile(e.target.files?.[0] || null)} className="w-full" />
+                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                   Файл ({newType === 'audio' ? 'MP3, OGG, WAV' : newType === 'video' ? 'MP4, MOV, WEBM' : 'JPG, PNG, WEBP'})
+                 </label>
+                 <input type="file" accept={newType === 'audio' ? 'audio/*' : newType === 'video' ? 'video/*' : 'image/*'} onChange={e => setNewFile(e.target.files?.[0] || null)} className="w-full" />
                  {newType === 'image' && <p className="text-xs text-gray-500 mt-2">Картинка будет автоматически сжата на сервере до формата WebP.</p>}
+                 {newType === 'video' && <p className="text-xs text-gray-500 mt-2">Видео будет автоматически ужато на сервере до WebM.</p>}
                </div>
             )}
 
@@ -305,6 +309,18 @@ function SquarePreview({ square }: { square: Square }) {
       <div className="h-20 w-40 shrink-0 rounded-lg border border-gray-200 bg-white p-2 flex items-center">
         {audioUrl ? <audio controls preload="none" src={audioUrl} className="w-full" /> : <span className="text-xs text-gray-400">Нет аудио</span>}
       </div>
+    );
+  }
+
+  if (square.type === 'video') {
+    return (
+      <video
+        src={square.content}
+        className="h-20 w-40 shrink-0 rounded-lg border border-gray-200 bg-black object-cover"
+        muted
+        playsInline
+        preload="metadata"
+      />
     );
   }
 

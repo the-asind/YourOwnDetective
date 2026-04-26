@@ -240,6 +240,18 @@ export default function BottomSheet({ square, onClose }: BottomSheetProps) {
                     </div>
                   </div>
                 )}
+
+                {square.type === 'video' && (
+                  <div className="w-full bg-black rounded-[28px] overflow-hidden">
+                    <video
+                      src={square.content}
+                      className="h-auto max-h-[70dvh] w-full object-contain"
+                      controls
+                      playsInline
+                      preload="metadata"
+                    />
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>

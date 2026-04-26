@@ -1,4 +1,4 @@
-export type ContentType = 'image' | 'text' | 'audio';
+export type ContentType = 'image' | 'text' | 'audio' | 'video';
 
 export interface Square {
   id: string;

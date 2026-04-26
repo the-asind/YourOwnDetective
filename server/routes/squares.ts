@@ -5,9 +5,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { query } from '../db.js';
 import { uploadFile, deleteFile, S3_PUBLIC_BASE } from '../storage.js';
 import { processAudio } from '../lib/audio.js';
+import { processVideo } from '../lib/video.js';
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 250 * 1024 * 1024 } });
 
 /** ───── GET /api/squares ───── */
 router.get('/', async (req, res) => {
@@ -80,6 +81,9 @@ router.post('/', upload.single('file'), async (req, res) => {
       audioUrlVal = await uploadFile(`audio/${audioId}.webm`, processed.opus, 'audio/webm');
       audioFallbackUrlVal = await uploadFile(`audio/${audioId}.m4a`, processed.aac, 'audio/mp4');
       contentVal = 'Аудиофайл';
+    } else if (type === 'video' && req.file) {
+      const processed = await processVideo(req.file.buffer, req.file.originalname);
+      contentVal = await uploadFile(`video/${uuidv4()}.webm`, processed, 'video/webm');
     } else {
       return res.status(400).json({ error: 'File or text content required' });
     }
@@ -208,7 +212,7 @@ router.delete('/:id', async (req, res) => {
     const sq = rows[0];
 
     // Delete associated files from S3 if they are our uploads
-    if (sq.type === 'image' && sq.content?.startsWith(S3_PUBLIC_BASE)) {
+    if ((sq.type === 'image' || sq.type === 'video') && sq.content?.startsWith(S3_PUBLIC_BASE)) {
       const key = sq.content.replace(`${S3_PUBLIC_BASE}/`, '');
       await deleteFile(key).catch(() => {});
     }

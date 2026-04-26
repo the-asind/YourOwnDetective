@@ -284,9 +284,27 @@ function SquareCard({ square, onClick }: { key?: string | number; square: Square
         </div>
       )}
 
+      {square.type === 'video' && (
+        <>
+          <video
+            src={square.content}
+            className="absolute inset-0 h-full w-full object-cover"
+            muted
+            playsInline
+            preload="metadata"
+          />
+          <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/60 to-transparent" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-sm">
+              <span className="ml-1 text-xl leading-none">▶</span>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Timestamp */}
       <div className={`absolute bottom-2 inset-x-0 text-[9px] text-center font-medium ${
-        square.type === 'image' ? 'text-white/90 drop-shadow-md' : 'text-slate-500/80'
+        square.type === 'image' || square.type === 'video' ? 'text-white/90 drop-shadow-md' : 'text-slate-500/80'
       }`}>
         {timeAgo}
       </div>

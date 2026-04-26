@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS squares (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     secret_name TEXT NOT NULL,
-    type        TEXT NOT NULL CHECK (type IN ('image', 'text', 'audio')),
+    type        TEXT NOT NULL CHECK (type IN ('image', 'text', 'audio', 'video')),
     content     TEXT,
     audio_url   TEXT,
     description TEXT,
