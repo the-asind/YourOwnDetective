@@ -88,6 +88,11 @@ export interface GuessResult {
   success: boolean;
   reason?: string;
   square?: Square;
+  hint?: {
+    level: 'ice' | 'cold' | 'warmer' | 'warm' | 'hot' | 'burning' | 'almost';
+    label: string;
+    message: string;
+  };
 }
 
 export async function guess(query: string, playerName: string): Promise<GuessResult> {

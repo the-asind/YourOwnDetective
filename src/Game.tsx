@@ -21,6 +21,8 @@ export default function Game({ playerName }: GameProps) {
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [errorFeedback, setErrorFeedback] = useState(false);
   const [successFeedback, setSuccessFeedback] = useState(false);
+  const [guessHint, setGuessHint] = useState<api.GuessResult['hint']>(undefined);
+  const hintTimerRef = useRef<number | undefined>(undefined);
   
   const { stamina, consumeStamina } = useStamina();
 
@@ -54,10 +56,12 @@ export default function Game({ playerName }: GameProps) {
         );
         setSuccessFeedback(true);
         setTimeout(() => setSuccessFeedback(false), 1500);
+        setGuessHint(undefined);
         setSearchQuery('');
         // Refresh from server to get canonical state
         refresh();
       } else {
+        showHint(result.hint);
         triggerError();
       }
     } catch (err) {
@@ -69,6 +73,18 @@ export default function Game({ playerName }: GameProps) {
   const triggerError = () => {
     setErrorFeedback(true);
     setTimeout(() => setErrorFeedback(false), 400);
+  };
+
+  const showHint = (hint: api.GuessResult['hint']) => {
+    if (!hint) return;
+    if (hintTimerRef.current) {
+      window.clearTimeout(hintTimerRef.current);
+    }
+
+    setGuessHint(hint);
+    hintTimerRef.current = window.setTimeout(() => {
+      setGuessHint(undefined);
+    }, 2800);
   };
 
   // Stamina bar visual calculations
@@ -107,6 +123,27 @@ export default function Game({ playerName }: GameProps) {
             </div>
           </motion.div>
         </form>
+        <AnimatePresence>
+          {guessHint && (
+            <motion.div
+              key={`${guessHint.level}-${guessHint.label}`}
+              initial={{ opacity: 0, y: -8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.98 }}
+              transition={{ duration: 0.18 }}
+              className={`mx-4 mt-3 rounded-2xl border px-4 py-3 shadow-sm ${
+                guessHint.level === 'ice' || guessHint.level === 'cold'
+                  ? 'border-blue-100 bg-blue-50 text-blue-900'
+                  : guessHint.level === 'warmer' || guessHint.level === 'warm'
+                    ? 'border-amber-100 bg-amber-50 text-amber-900'
+                    : 'border-orange-100 bg-orange-50 text-orange-950'
+              }`}
+            >
+              <div className="text-sm font-semibold">{guessHint.label}</div>
+              <div className="mt-0.5 text-xs opacity-75">{guessHint.message}</div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Scrollable Tabs */}

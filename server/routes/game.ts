@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { isMatch } from '../lib/match.js';
+import { buildGuessHint } from '../lib/hint.js';
 
 const router = Router();
 
@@ -29,7 +30,10 @@ router.post('/', async (req, res) => {
     const matched = lockedSquares.find((sq) => isMatch(cleanQuery, sq.secret_name));
 
     if (!matched) {
-      return res.json({ success: false });
+      return res.json({
+        success: false,
+        hint: buildGuessHint(cleanQuery, lockedSquares.map((sq) => sq.secret_name)),
+      });
     }
 
     // Ensure user exists
