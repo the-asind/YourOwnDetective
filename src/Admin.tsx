@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useSquares, useUsers } from './store';
 import { ContentType, Square } from './data/mock';
@@ -72,9 +72,9 @@ export default function Admin() {
 
 function AdminPanel() {
   const { squares, refresh: refreshSquares } = useSquares(true); // admin=true → get secretNames
-  const { users, removeUser } = useUsers();
+  const { users, removeUser, refresh: refreshUsers } = useUsers();
   
-  const [newTab, setNewTab] = useState<'squares' | 'users' | 'add'>('squares');
+  const [newTab, setNewTab] = useState<'squares' | 'users' | 'add' | 'logs'>('squares');
   
   // New square state
   const [newName, setNewName] = useState('');
@@ -83,9 +83,49 @@ function AdminPanel() {
   const [newContentText, setNewContentText] = useState('');
   const [newFile, setNewFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [guessLogs, setGuessLogs] = useState<api.GuessLog[]>([]);
+  const lastLogIdRef = useRef(0);
 
   // Edit square state
   const [editingSquare, setEditingSquare] = useState<Square | null>(null);
+
+  useEffect(() => {
+    if (newTab !== 'logs') return;
+
+    const controller = new AbortController();
+    let cancelled = false;
+
+    const pollLogs = async () => {
+      try {
+        const initialLogs = await api.getGuessLogs(0, false, controller.signal);
+        if (cancelled) return;
+        setGuessLogs(initialLogs.slice(-80).reverse());
+        lastLogIdRef.current = initialLogs.at(-1)?.id || 0;
+
+        while (!cancelled) {
+          const logs = await api.getGuessLogs(lastLogIdRef.current, true, controller.signal);
+          if (cancelled) return;
+          if (logs.length) {
+            lastLogIdRef.current = logs.at(-1)?.id || lastLogIdRef.current;
+            setGuessLogs((prev) => [...logs.reverse(), ...prev].slice(0, 80));
+          }
+        }
+      } catch (err: any) {
+        if (!cancelled && err.name !== 'AbortError') {
+          console.error('[Admin] logs polling error:', err);
+          setTimeout(pollLogs, 2000);
+        }
+      }
+    };
+
+    pollLogs();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [newTab]);
 
   const createSquare = async () => {
     if (!newName) return alert('Введите название!');
@@ -144,6 +184,24 @@ function AdminPanel() {
     }
   };
 
+  const resetProgress = async () => {
+    const confirmed = confirm(
+      'Обнулить прогресс? Все квадраты станут скрытыми, информация кто открыл будет удалена, все игроки будут удалены. Сами квадраты и их контент останутся.',
+    );
+    if (!confirmed) return;
+
+    setResetting(true);
+    try {
+      await api.resetProgress();
+      await Promise.all([refreshSquares(), refreshUsers()]);
+      alert('Прогресс обнулён. Квадраты и контент не удалялись.');
+    } catch (err: any) {
+      alert('Ошибка: ' + err.message);
+    } finally {
+      setResetting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-6 font-sans text-gray-800 pb-20">
       <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-sm p-8 border border-gray-100">
@@ -153,7 +211,24 @@ function AdminPanel() {
           <button onClick={() => setNewTab('squares')} className={`px-4 py-2 font-medium ${newTab === 'squares' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}>Квадраты</button>
           <button onClick={() => setNewTab('add')} className={`px-4 py-2 font-medium ${newTab === 'add' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}>+ Добавить Квадрат</button>
           <button onClick={() => setNewTab('users')} className={`px-4 py-2 font-medium ${newTab === 'users' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}>Игроки ({users.length})</button>
+          <button onClick={() => setNewTab('logs')} className={`px-4 py-2 font-medium ${newTab === 'logs' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}>Логи</button>
           <a href="/" className="ml-auto px-4 py-2 font-medium text-gray-400 hover:text-gray-600">В игру ↗</a>
+        </div>
+
+        <div className="mb-8 rounded-lg border border-red-100 bg-red-50 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="font-semibold text-red-900">Обнуление прогресса</div>
+              <p className="text-sm text-red-700">Скроет все квадраты и удалит игроков. Карточки, тексты и медиа останутся на месте.</p>
+            </div>
+            <button
+              onClick={resetProgress}
+              disabled={resetting}
+              className="shrink-0 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+            >
+              {resetting ? 'Обнуляю...' : 'Обнулить прогресс'}
+            </button>
+          </div>
         </div>
 
         {newTab === 'squares' && (
@@ -248,6 +323,29 @@ function AdminPanel() {
           </div>
         )}
 
+        {newTab === 'logs' && (
+          <div className="space-y-3">
+            {guessLogs.length === 0 ? <p className="text-gray-500">Пока нет запросов.</p> : null}
+            {guessLogs.map(log => (
+              <div key={log.id} className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold text-gray-900">{log.playerName}</span>
+                  <span className="text-gray-400">запросил</span>
+                  <span className="rounded-md bg-white px-2 py-0.5 font-mono text-sm text-gray-800">{log.query}</span>
+                  {log.isMatch ? (
+                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">isMatch</span>
+                  ) : (
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                      {log.hintLabel || 'Без совпадения'}
+                    </span>
+                  )}
+                  <span className="ml-auto text-xs text-gray-400">{formatLogTime(log.createdAt)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
       </div>
 
       {/* Edit Modal */}
@@ -290,6 +388,14 @@ function AdminPanel() {
       )}
     </div>
   );
+}
+
+function formatLogTime(timestamp: number) {
+  return new Intl.DateTimeFormat('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).format(new Date(timestamp));
 }
 
 function SquarePreview({ square }: { square: Square }) {

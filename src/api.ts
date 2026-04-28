@@ -110,3 +110,37 @@ export async function adminLogin(password: string): Promise<{ success: boolean }
     body: JSON.stringify({ password }),
   });
 }
+
+export interface GuessLog {
+  id: number;
+  playerName: string;
+  query: string;
+  isMatch: boolean;
+  hintLevel?: string;
+  hintLabel?: string;
+  createdAt: number;
+}
+
+export async function resetProgress(): Promise<void> {
+  await request(`${API}/admin/reset-progress`, { method: 'POST' });
+}
+
+export async function getGuessLogs(
+  after = 0,
+  wait = false,
+  signal?: AbortSignal,
+): Promise<GuessLog[]> {
+  const params = new URLSearchParams({
+    after: String(after),
+    wait: String(wait),
+  });
+
+  const res = await fetch(`${API}/admin/guess-logs?${params}`, { signal });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `HTTP ${res.status}`);
+  }
+
+  const body = await res.json();
+  return body.logs || [];
+}
