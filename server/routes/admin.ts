@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import dotenv from 'dotenv';
 import { query } from '../db.js';
+import { createAdminToken, requireAdmin } from '../lib/adminAuth.js';
 
 dotenv.config();
 
@@ -16,11 +17,13 @@ router.post('/login', (req, res) => {
   }
 
   if (password === ADMIN_PASSWORD) {
-    return res.json({ success: true });
+    return res.json({ success: true, token: createAdminToken() });
   }
 
   return res.status(401).json({ success: false, error: 'Неверный пароль' });
 });
+
+router.use(requireAdmin);
 
 /** POST /api/admin/reset-progress — hide all squares and remove players */
 router.post('/reset-progress', async (_req, res) => {

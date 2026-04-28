@@ -6,6 +6,24 @@
 import type { Square } from './data/mock';
 
 const API = '/api';
+const ADMIN_TOKEN_KEY = 'admin_token';
+
+export function getAdminToken(): string | null {
+  return sessionStorage.getItem(ADMIN_TOKEN_KEY);
+}
+
+export function setAdminToken(token: string): void {
+  sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
+}
+
+export function clearAdminToken(): void {
+  sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+}
+
+function adminHeaders(): HeadersInit {
+  const token = getAdminToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 async function request<T = any>(
   url: string,
@@ -28,12 +46,15 @@ async function request<T = any>(
 
 export async function getSquares(admin = false): Promise<Square[]> {
   const qs = admin ? '?admin=true' : '';
-  return request<Square[]>(`${API}/squares${qs}`);
+  return request<Square[]>(`${API}/squares${qs}`, {
+    headers: admin ? adminHeaders() : undefined,
+  });
 }
 
 export async function createSquare(formData: FormData): Promise<Square> {
   const res = await fetch(`${API}/squares`, {
     method: 'POST',
+    headers: adminHeaders(),
     body: formData, // multipart — no Content-Type header (browser sets boundary)
   });
   if (!res.ok) {
@@ -55,18 +76,27 @@ export async function updateSquare(
 ): Promise<Square> {
   return request<Square>(`${API}/squares/${id}`, {
     method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...adminHeaders(),
+    },
     body: JSON.stringify(data),
   });
 }
 
 export async function deleteSquare(id: string): Promise<void> {
-  await request(`${API}/squares/${id}`, { method: 'DELETE' });
+  await request(`${API}/squares/${id}`, {
+    method: 'DELETE',
+    headers: adminHeaders(),
+  });
 }
 
 // ── Users ──
 
 export async function getUsers(): Promise<string[]> {
-  return request<string[]>(`${API}/users`);
+  return request<string[]>(`${API}/users`, {
+    headers: adminHeaders(),
+  });
 }
 
 export async function addUser(name: string): Promise<{ name: string }> {
@@ -79,6 +109,7 @@ export async function addUser(name: string): Promise<{ name: string }> {
 export async function removeUser(name: string): Promise<void> {
   await request(`${API}/users/${encodeURIComponent(name)}`, {
     method: 'DELETE',
+    headers: adminHeaders(),
   });
 }
 
@@ -104,8 +135,8 @@ export async function guess(query: string, playerName: string): Promise<GuessRes
 
 // ── Admin ──
 
-export async function adminLogin(password: string): Promise<{ success: boolean }> {
-  return request<{ success: boolean }>(`${API}/admin/login`, {
+export async function adminLogin(password: string): Promise<{ success: boolean; token: string }> {
+  return request<{ success: boolean; token: string }>(`${API}/admin/login`, {
     method: 'POST',
     body: JSON.stringify({ password }),
   });
@@ -122,7 +153,10 @@ export interface GuessLog {
 }
 
 export async function resetProgress(): Promise<void> {
-  await request(`${API}/admin/reset-progress`, { method: 'POST' });
+  await request(`${API}/admin/reset-progress`, {
+    method: 'POST',
+    headers: adminHeaders(),
+  });
 }
 
 export async function getGuessLogs(
@@ -135,7 +169,10 @@ export async function getGuessLogs(
     wait: String(wait),
   });
 
-  const res = await fetch(`${API}/admin/guess-logs?${params}`, { signal });
+  const res = await fetch(`${API}/admin/guess-logs?${params}`, {
+    signal,
+    headers: adminHeaders(),
+  });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || `HTTP ${res.status}`);

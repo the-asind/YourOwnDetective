@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import { query } from '../db.js';
+import { requireAdmin } from '../lib/adminAuth.js';
 
 const router = Router();
 
 /** ───── GET /api/users ───── */
-router.get('/', async (_req, res) => {
+router.get('/', requireAdmin, async (_req, res) => {
   try {
     const { rows } = await query('SELECT name, created_at FROM users ORDER BY created_at ASC');
     res.json(rows.map((r) => r.name));
@@ -36,7 +37,7 @@ router.post('/', async (req, res) => {
 });
 
 /** ───── DELETE /api/users/:name ───── */
-router.delete('/:name', async (req, res) => {
+router.delete('/:name', requireAdmin, async (req, res) => {
   try {
     const { name } = req.params;
     const { rowCount } = await query('DELETE FROM users WHERE name = $1', [name]);

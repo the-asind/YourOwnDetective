@@ -6,6 +6,7 @@ import { query } from '../db.js';
 import { uploadFile, deleteFile, S3_PUBLIC_BASE } from '../storage.js';
 import { processAudio } from '../lib/audio.js';
 import { processVideo } from '../lib/video.js';
+import { isAdminRequest, requireAdmin } from '../lib/adminAuth.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 250 * 1024 * 1024 } });
@@ -13,7 +14,10 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 250
 /** ───── GET /api/squares ───── */
 router.get('/', async (req, res) => {
   try {
-    const isAdmin = req.query.admin === 'true';
+    const wantsAdmin = req.query.admin === 'true';
+    if (wantsAdmin && !isAdminRequest(req)) {
+      return res.status(401).json({ error: 'Admin authorization required' });
+    }
 
     const { rows } = await query(
       `SELECT id, secret_name, type, content, audio_url, audio_fallback_url, description,
@@ -35,7 +39,7 @@ router.get('/', async (req, res) => {
       };
 
       // Only expose secretName if opened or admin request
-      if (r.is_opened || isAdmin) {
+      if (r.is_opened || wantsAdmin) {
         sq.secretName = r.secret_name;
       } else {
         sq.secretName = '???';
@@ -52,7 +56,7 @@ router.get('/', async (req, res) => {
 });
 
 /** ───── POST /api/squares ───── */
-router.post('/', upload.single('file'), async (req, res) => {
+router.post('/', requireAdmin, upload.single('file'), async (req, res) => {
   try {
     const { secretName, type, description, contentText } = req.body;
 
@@ -127,7 +131,7 @@ router.post('/', upload.single('file'), async (req, res) => {
 });
 
 /** ───── PUT /api/squares/:id ───── */
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { isOpened, openedBy, description, secretName, content } = req.body;
@@ -201,7 +205,7 @@ router.put('/:id', async (req, res) => {
 });
 
 /** ───── DELETE /api/squares/:id ───── */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 

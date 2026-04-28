@@ -21,6 +21,7 @@ function AdminLogin({ onSuccess }: { onSuccess: () => void }) {
     try {
       const result = await api.adminLogin(password);
       if (result.success) {
+        api.setAdminToken(result.token);
         sessionStorage.setItem(ADMIN_AUTH_KEY, '1');
         onSuccess();
       }
@@ -60,7 +61,7 @@ function AdminLogin({ onSuccess }: { onSuccess: () => void }) {
 
 export default function Admin() {
   const [isAuthed, setIsAuthed] = useState(() =>
-    sessionStorage.getItem(ADMIN_AUTH_KEY) === '1',
+    sessionStorage.getItem(ADMIN_AUTH_KEY) === '1' && Boolean(api.getAdminToken()),
   );
 
   if (!isAuthed) {
