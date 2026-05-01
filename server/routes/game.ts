@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query } from '../db.js';
 import { isMatch } from '../lib/match.js';
 import { buildGuessHint } from '../lib/hint.js';
+import { buildAudioSecretHints } from '../lib/audioSecretHints.js';
 
 const router = Router();
 
@@ -82,6 +83,13 @@ router.post('/', async (req, res) => {
     }
 
     const sq = updated[0];
+    const remainingSecrets = lockedSquares
+      .filter((lockedSquare) => lockedSquare.id !== matched.id)
+      .map((lockedSquare) => lockedSquare.secret_name);
+    const audioHints = sq.type === 'audio'
+      ? buildAudioSecretHints(sq.description, remainingSecrets)
+      : [];
+
     res.json({
       success: true,
       square: {
@@ -92,6 +100,7 @@ router.post('/', async (req, res) => {
         audioUrl: sq.audio_url || undefined,
         audioFallbackUrl: sq.audio_fallback_url || undefined,
         description: sq.description || undefined,
+        audioHints: audioHints.length ? audioHints : undefined,
         isOpened: true,
         openedBy: sq.opened_by,
         openedAt: new Date(sq.opened_at).getTime(),

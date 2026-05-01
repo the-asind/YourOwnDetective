@@ -300,6 +300,25 @@ export default function BottomSheet({ square, onClose }: BottomSheetProps) {
                         background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${progress}%, #e5e7eb ${progress}%, #e5e7eb 100%)`,
                       }}
                     />
+                    {square.audioHints?.length ? (
+                      <div className="-mt-3 mb-6 h-3 w-full max-w-[220px] rounded-full bg-slate-200/60 px-1">
+                        <div className="relative h-full">
+                          {square.audioHints.map((hint, index) => {
+                            const left = Math.max(0, Math.min(100 - hint.width, hint.position - hint.width / 2));
+                            return (
+                              <div
+                                key={`${hint.position}-${index}`}
+                                className="absolute top-1/2 h-2 -translate-y-1/2 rounded-full bg-blue-500/45 blur-[1.5px]"
+                                style={{
+                                  left: `${left}%`,
+                                  width: `${hint.width}%`,
+                                }}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
                     <div className="text-3xl font-mono tracking-tight text-gray-800">
                       {formatTime(currentTime)} <span className="text-gray-400 text-xl">/ {formatTime(duration)}</span>
                     </div>

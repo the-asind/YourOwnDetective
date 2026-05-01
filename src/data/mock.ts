@@ -7,6 +7,10 @@ export interface Square {
   content: string;
   audioUrl?: string;
   audioFallbackUrl?: string;
+  audioHints?: Array<{
+    position: number;
+    width: number;
+  }>;
   isOpened: boolean;
   openedBy?: string;
   openedAt?: number;

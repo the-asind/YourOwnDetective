@@ -7,6 +7,7 @@ import { uploadFile, deleteFile, S3_PUBLIC_BASE } from '../storage.js';
 import { processAudio } from '../lib/audio.js';
 import { processVideo } from '../lib/video.js';
 import { isAdminRequest, requireAdmin } from '../lib/adminAuth.js';
+import { buildAudioSecretHints } from '../lib/audioSecretHints.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 250 * 1024 * 1024 } });
@@ -25,6 +26,10 @@ router.get('/', async (req, res) => {
        FROM squares ORDER BY sort_order ASC, created_at ASC`,
     );
 
+    const lockedSecretNames = rows
+      .filter((r) => !r.is_opened)
+      .map((r) => r.secret_name);
+
     const squares = rows.map((r) => {
       const sq: any = {
         id: r.id,
@@ -37,6 +42,11 @@ router.get('/', async (req, res) => {
         openedBy: r.opened_by || undefined,
         openedAt: r.opened_at ? new Date(r.opened_at).getTime() : undefined,
       };
+
+      if (r.is_opened && r.type === 'audio') {
+        const audioHints = buildAudioSecretHints(r.description, lockedSecretNames);
+        if (audioHints.length) sq.audioHints = audioHints;
+      }
 
       // Only expose secretName if opened or admin request
       if (r.is_opened || wantsAdmin) {
