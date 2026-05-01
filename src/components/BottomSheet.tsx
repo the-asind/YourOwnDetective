@@ -308,7 +308,7 @@ export default function BottomSheet({ square, onClose }: BottomSheetProps) {
                             return (
                               <div
                                 key={`${hint.position}-${index}`}
-                                className="absolute top-1/2 h-2 -translate-y-1/2 rounded-full bg-blue-500/45 blur-[1.5px]"
+                                className="absolute top-1/2 h-2 -translate-y-1/2 rounded-full bg-blue-500/70 blur-[1px] shadow-[0_0_12px_rgba(59,130,246,0.75)]"
                                 style={{
                                   left: `${left}%`,
                                   width: `${hint.width}%`,
