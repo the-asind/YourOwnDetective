@@ -30,7 +30,19 @@ router.post('/', async (req, res) => {
     const matched = lockedSquares.find((sq) => isMatch(cleanQuery, sq.secret_name));
 
     if (!matched) {
-      const hint = buildGuessHint(cleanQuery, lockedSquares.map((sq) => sq.secret_name));
+      const { rows: previousGuesses } = await query(
+        `SELECT query_text
+         FROM guess_logs
+         WHERE player_name = $1 AND is_match = FALSE
+         ORDER BY id DESC
+         LIMIT 1`,
+        [playerName],
+      );
+      const hint = buildGuessHint(
+        cleanQuery,
+        lockedSquares.map((sq) => sq.secret_name),
+        previousGuesses[0]?.query_text,
+      );
       await query(
         `INSERT INTO guess_logs (player_name, query_text, is_match, hint_level, hint_label)
          VALUES ($1, $2, FALSE, $3, $4)`,

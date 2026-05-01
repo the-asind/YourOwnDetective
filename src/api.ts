@@ -123,6 +123,7 @@ export interface GuessResult {
     level: 'ice' | 'cold' | 'warmer' | 'warm' | 'hot' | 'burning' | 'almost';
     label: string;
     message: string;
+    trend?: 'warmer' | 'colder' | 'same';
   };
 }
 
