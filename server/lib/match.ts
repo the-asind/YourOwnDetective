@@ -33,7 +33,7 @@ export function levenshteinDistance(a: string, b: string): number {
   return matrix[b.length][a.length];
 }
 
-export function isMatch(query: string, secret: string, threshold = 0.93): boolean {
+export function isMatch(query: string, secret: string, threshold = 0.8): boolean {
   const q = query.toLowerCase().trim();
   const s = secret.toLowerCase().trim();
   if (q === s) return true;
