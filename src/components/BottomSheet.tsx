@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence, useDragControls } from 'motion/react';
+import { Pause, Play } from 'lucide-react';
 import { Square } from '../data/mock';
 import { getPlayableAudioUrl } from '../lib/audio';
+
+const AUDIO_POSITION_KEY = 'detective_last_audio_position';
 
 const formatTime = (time: number) => {
   if (isNaN(time)) return "0:00";
@@ -9,6 +12,25 @@ const formatTime = (time: number) => {
   const s = Math.floor(time % 60);
   return `${m}:${s.toString().padStart(2, '0')}`;
 };
+
+function getSavedAudioPosition(squareId: string): number {
+  try {
+    const saved = JSON.parse(localStorage.getItem(AUDIO_POSITION_KEY) || 'null');
+    return saved?.squareId === squareId && Number.isFinite(saved?.currentTime)
+      ? Math.max(0, saved.currentTime)
+      : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function saveAudioPosition(squareId: string, currentTime: number, duration: number) {
+  const shouldRestart = Number.isFinite(duration) && duration > 0 && currentTime >= duration - 0.25;
+  localStorage.setItem(AUDIO_POSITION_KEY, JSON.stringify({
+    squareId,
+    currentTime: shouldRestart ? 0 : Math.max(0, currentTime),
+  }));
+}
 
 interface BottomSheetProps {
   square: Square | null;
@@ -19,6 +41,7 @@ export default function BottomSheet({ square, onClose }: BottomSheetProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [playbackRate, setPlaybackRate] = useState(1);
   const [frequencies, setFrequencies] = useState<number[]>(new Array(12).fill(10));
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -51,7 +74,15 @@ export default function BottomSheet({ square, onClose }: BottomSheetProps) {
         console.log("Audio Routing Error (CORS):", e);
       }
 
-      audio.addEventListener('loadedmetadata', () => setDuration(audio.duration));
+      audio.playbackRate = playbackRate;
+      audio.addEventListener('loadedmetadata', () => {
+        setDuration(audio.duration);
+        const savedTime = getSavedAudioPosition(square.id);
+        if (savedTime > 0 && (!Number.isFinite(audio.duration) || savedTime < audio.duration - 0.25)) {
+          audio.currentTime = savedTime;
+          setCurrentTime(savedTime);
+        }
+      });
       audio.addEventListener('timeupdate', () => setCurrentTime(audio.currentTime));
       audio.addEventListener('ended', () => setIsPlaying(false));
       
@@ -89,6 +120,9 @@ export default function BottomSheet({ square, onClose }: BottomSheetProps) {
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
       if (audioRef.current) {
+        if (square?.type === 'audio') {
+          saveAudioPosition(square.id, audioRef.current.currentTime, audioRef.current.duration);
+        }
         audioRef.current.pause();
         audioRef.current.src = '';
         audioRef.current = null;
@@ -104,6 +138,12 @@ export default function BottomSheet({ square, onClose }: BottomSheetProps) {
     };
   }, [square]);
 
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = playbackRate;
+    }
+  }, [playbackRate]);
+
   const handleDragEnd = (e: any, info: any) => {
     const shouldClose = info.velocity.y > 200 || info.offset.y > 100;
     if (shouldClose) {
@@ -115,10 +155,11 @@ export default function BottomSheet({ square, onClose }: BottomSheetProps) {
     const audio = audioRef.current;
     if (!audio || !Number.isFinite(duration)) return;
 
+    const wasEnded = audio.ended;
     audio.currentTime = time;
     setCurrentTime(time);
 
-    if (audio.paused) {
+    if (wasEnded) {
       audio.play().then(() => {
         setIsPlaying(true);
         if (audioCtxRef.current?.state === 'suspended') {
@@ -128,6 +169,30 @@ export default function BottomSheet({ square, onClose }: BottomSheetProps) {
         console.error("Playback resume prevented:", err);
       });
     }
+  };
+
+  const togglePlayback = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (audio.paused) {
+      audio.play().then(() => {
+        setIsPlaying(true);
+        if (audioCtxRef.current?.state === 'suspended') {
+          audioCtxRef.current.resume();
+        }
+      }).catch(err => {
+        console.error("Playback prevented:", err);
+      });
+      return;
+    }
+
+    audio.pause();
+    setIsPlaying(false);
+  };
+
+  const togglePlaybackRate = () => {
+    setPlaybackRate((rate) => (rate === 1 ? 2 : 1));
   };
 
   if (!square) return null;
@@ -237,6 +302,28 @@ export default function BottomSheet({ square, onClose }: BottomSheetProps) {
                     />
                     <div className="text-3xl font-mono tracking-tight text-gray-800">
                       {formatTime(currentTime)} <span className="text-gray-400 text-xl">/ {formatTime(duration)}</span>
+                    </div>
+                    <div className="mt-6 flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={togglePlayback}
+                        className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-500 text-white shadow-sm active:scale-95"
+                        aria-label={isPlaying ? 'Пауза' : 'Играть'}
+                      >
+                        {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="ml-0.5 h-5 w-5" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={togglePlaybackRate}
+                        className={`h-11 rounded-full px-5 text-sm font-semibold shadow-sm active:scale-95 ${
+                          playbackRate === 2
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-white text-gray-700 ring-1 ring-gray-200'
+                        }`}
+                        aria-label="Скорость воспроизведения"
+                      >
+                        {playbackRate === 2 ? '2x' : '1x'}
+                      </button>
                     </div>
                   </div>
                 )}
