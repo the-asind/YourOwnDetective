@@ -4,6 +4,8 @@ export interface AudioSecretHint {
 }
 
 const MIN_SECRET_SIMILARITY = 0.9;
+const SINGLE_WORD_HINT_WIDTH = 13.8;
+const PHRASE_HINT_WIDTH = 18.4;
 
 function normalizeText(value: string): string {
   return value
@@ -115,7 +117,7 @@ export function buildAudioSecretHints(description: string | null | undefined, se
     if (!seen.has(key)) {
       hints.push({
         position,
-        width: normalizeText(secret).includes(' ') ? 16 : 12,
+        width: normalizeText(secret).includes(' ') ? PHRASE_HINT_WIDTH : SINGLE_WORD_HINT_WIDTH,
       });
       seen.add(key);
     }
